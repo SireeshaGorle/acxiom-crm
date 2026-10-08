@@ -1,0 +1,208 @@
+// ACXIOMCRM Database Schema (PostgreSQL with Prisma ORM)
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Role {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique // ADMIN, MANAGER, SALES_EXECUTIVE
+  description String?
+  users       User[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("roles")
+}
+
+model User {
+  id                  Int       @id @default(autoincrement())
+  email               String    @unique
+  password            String
+  firstName           String
+  lastName            String
+  phone               String?
+  roleId              Int
+  role                Role      @relation(fields: [roleId], references: [id])
+  isActive            Boolean   @default(true)
+  failedLoginAttempts Int       @default(0)
+  lockedUntil         DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  // Relationships
+  createdCustomers     Customer[]    @relation("CreatedCustomers")
+  assignedCustomers    Customer[]    @relation("AssignedCustomers")
+  createdLeads         Lead[]        @relation("CreatedLeads")
+  assignedLeads        Lead[]        @relation("AssignedLeads")
+  createdOpportunities Opportunity[] @relation("CreatedOpportunities")
+  assignedOpportunities Opportunity[] @relation("AssignedOpportunities")
+  createdFollowUps     FollowUp[]    @relation("CreatedFollowUps")
+  assignedFollowUps    FollowUp[]    @relation("AssignedFollowUps")
+  createdActivities    Activity[]    @relation("CreatedActivities")
+  assignedActivities   Activity[]    @relation("AssignedActivities")
+  auditLogs            AuditLog[]
+
+  @@map("users")
+}
+
+model Customer {
+  id           Int      @id @default(autoincrement())
+  customerCode String   @unique // e.g. CUST-0001
+  name         String
+  email        String   @unique
+  phone        String
+  companyName  String
+  address      String?
+  city         String?
+  state        String?
+  status       String   @default("ACTIVE") // ACTIVE, INACTIVE
+  createdById  Int
+  createdBy    User     @relation("CreatedCustomers", fields: [createdById], references: [id])
+  assignedToId Int?
+  assignedTo   User?    @relation("AssignedCustomers", fields: [assignedToId], references: [id])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relationships
+  convertedLeads Lead[]        @relation("ConvertedCustomerLeads")
+  opportunities  Opportunity[]
+  followUps      FollowUp[]
+  activities     Activity[]
+
+  @@index([email])
+  @@index([status])
+  @@index([assignedToId])
+  @@map("customers")
+}
+
+model Lead {
+  id                  Int       @id @default(autoincrement())
+  leadCode            String    @unique // e.g. LEAD-0001
+  name                String
+  email               String
+  phone               String
+  companyName         String
+  source              String    @default("WEBSITE") // WEBSITE, REFERRAL, COLD_CALL, EXHIBITION, SOCIAL_MEDIA, OTHER
+  status              String    @default("NEW") // NEW, CONTACTED, QUALIFIED, UNQUALIFIED, CONVERTED, LOST
+  estimatedValue      Float     @default(0.0)
+  notes               String?
+  convertedCustomerId Int?
+  convertedCustomer   Customer? @relation("ConvertedCustomerLeads", fields: [convertedCustomerId], references: [id], onDelete: SetNull)
+  createdById         Int
+  createdBy           User      @relation("CreatedLeads", fields: [createdById], references: [id])
+  assignedToId        Int?
+  assignedTo          User?     @relation("AssignedLeads", fields: [assignedToId], references: [id])
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  // Relationships
+  opportunities Opportunity[]
+  followUps     FollowUp[]
+  activities    Activity[]
+
+  @@index([email])
+  @@index([status])
+  @@index([assignedToId])
+  @@map("leads")
+}
+
+model Opportunity {
+  id                Int      @id @default(autoincrement())
+  opportunityCode   String   @unique // e.g. OPP-0001
+  name              String
+  customerId        Int
+  customer          Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  leadId            Int?
+  lead              Lead?    @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  amount            Float
+  stage             String   @default("QUALIFICATION") // QUALIFICATION, PROPOSAL, NEGOTIATION, WON, LOST
+  probability       Int      @default(10) // 0 to 100 percentage
+  expectedCloseDate DateTime
+  status            String   @default("OPEN") // OPEN, WON, LOST
+  notes             String?
+  createdById       Int
+  createdBy         User     @relation("CreatedOpportunities", fields: [createdById], references: [id])
+  assignedToId      Int?
+  assignedTo        User?    @relation("AssignedOpportunities", fields: [assignedToId], references: [id])
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([stage])
+  @@index([status])
+  @@index([customerId])
+  @@index([assignedToId])
+  @@map("opportunities")
+}
+
+model FollowUp {
+  id           Int      @id @default(autoincrement())
+  customerId   Int?
+  customer     Customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  leadId       Int?
+  lead         Lead?    @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  followUpDate DateTime
+  type         String   @default("CALL") // CALL, MEETING, EMAIL, TASK
+  remarks      String
+  status       String   @default("PLANNED") // PLANNED, COMPLETED, MISSED, CANCELLED
+  createdById  Int
+  createdBy    User     @relation("CreatedFollowUps", fields: [createdById], references: [id])
+  assignedToId Int?
+  assignedTo   User?    @relation("AssignedFollowUps", fields: [assignedToId], references: [id])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([followUpDate])
+  @@index([status])
+  @@index([assignedToId])
+  @@map("follow_ups")
+}
+
+model Activity {
+  id           Int      @id @default(autoincrement())
+  type         String   @default("CALL") // CALL, MEETING, EMAIL, TASK
+  subject      String
+  description  String?
+  activityDate DateTime @default(now())
+  customerId   Int?
+  customer     Customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  leadId       Int?
+  lead         Lead?    @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  status       String   @default("PLANNED") // PLANNED, IN_PROGRESS, COMPLETED, CANCELLED
+  createdById  Int
+  createdBy    User     @relation("CreatedActivities", fields: [createdById], references: [id])
+  assignedToId Int?
+  assignedTo   User?    @relation("AssignedActivities", fields: [assignedToId], references: [id])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([activityDate])
+  @@index([status])
+  @@index([assignedToId])
+  @@map("activities")
+}
+
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  userId    Int?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userEmail String
+  action    String   // LOGIN, FAILED_LOGIN, LOGOUT, CREATE, UPDATE, DELETE, DEACTIVATE, ROLE_CHANGE, STATUS_CHANGE, CONVERT_LEAD, SECURITY_EVENT
+  entity    String   // AUTH, USER, ROLE, CUSTOMER, LEAD, OPPORTUNITY, FOLLOWUP, ACTIVITY, SYSTEM
+  recordId  String?
+  oldValue  String?  // JSON string
+  newValue  String?  // JSON string
+  ipAddress String   @default("127.0.0.1")
+  createdAt DateTime @default(now())
+
+  @@index([action])
+  @@index([entity])
+  @@index([userId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}

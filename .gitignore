@@ -1,0 +1,46 @@
+# Node dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Build directories
+dist/
+build/
+*.tsbuildinfo
+
+# IDE & Editor files
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+
+# Prisma generated artifacts (except client)
+prisma/migrations/dev.db
+prisma/migrations/dev.db-journal
+dev.db
+dev.db-journal
+backend/dev.db
+backend/dev.db-journal
+backend/prisma/dev.db
+backend/prisma/dev.db-journal
+*.db
+*.db-journal
